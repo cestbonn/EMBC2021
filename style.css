@@ -1,0 +1,41 @@
+#inputblock{
+	text-align: left; 
+	background-color: rgb(255, 255, 255);
+	border-radius: 20px;
+	width: 400;
+	height: 400;
+	margin: auto;
+    position: absolute;
+	left: 0;
+	right: 0;
+}
+#canvas{
+	text-align: center; 
+	background-color: rgb(255, 255, 255);
+    border-radius: 10px;
+    border-style:solid;
+	border-color: darkgray;
+	margin:0 auto;
+	width: 400;
+	height: 430;
+	position: relative;
+	top: 350;
+	left: 0;
+	right: 0;
+	bottom: 0;
+}
+
+#reset{
+	position: absolute;
+	font-size: 20;
+	width: 100;
+	height: 30;
+    bottom: 0;
+    left: 150;
+    right: 150;
+}
+
+
+#prediction{
+    font-weight:normal;
+}

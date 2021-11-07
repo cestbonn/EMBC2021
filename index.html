@@ -1,0 +1,130 @@
+<html>
+
+<head>
+    <title>SAR prediction</title>
+    <link rel='stylesheet' type='text/css' media='screen' href='../style.css'>
+</head>
+
+<body>
+    <h1 style="text-align:center;">SAR prediction (1.5T)</h1>
+    <div id="inputblock">
+        <h2>1. upload coordinate file (.txt)</h2>
+        <p>
+            <b>Note</b><br>a. 116 points<br>
+            b. coordinate shoule be like: {x,y,z}\n<br>
+            examples:
+            <a href='lead1.txt'>lead#1</a>
+            <a href='lead129.txt'>lead#129</a>
+            <a href='lead394.txt'>lead#394</a>
+        </p>
+        
+        <input style="font-size:20px" font-weight=normal type="file" id="file-uploader">
+        <h2>2. predict SAR</h2>
+        <div style="font-size:20px" font-weight=normal id='prediction'>SAR (scaled by 4 W/kg):<br>SAR (without scaling):<br>length:</div>
+    </div>
+    <div id="canvas">
+        <button type="button" style="display: inline;" id="reset">reset</button>
+    </div>
+    
+    
+    
+    
+    <script src="three.js"></script>
+    <script src="OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/onnxjs/dist/onnx.min.js"></script>
+    <script>
+        var fileUploader = document.getElementById('file-uploader');
+        
+
+        document.getElementById("reset").onclick=function(){
+            camera.position.set( 0, -150, 0 );
+            camera.lookAt( 0, 0, 0 );
+        }
+        const camera = new THREE.PerspectiveCamera( 15, 1, 0.1, 1000 );
+        camera.position.set( 0, -150, 0 );
+        camera.lookAt( 0, 0, 0 );
+
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize( 400, 400 );
+        renderer.setClearColor(0xFFFFFF, 1);
+        document.getElementById( 'canvas' ).appendChild( renderer.domElement );
+
+        const scene = new THREE.Scene();
+        const material = new THREE.LineBasicMaterial( { color: 0x0000ff} );
+        
+        const axesHelper = new THREE.AxesHelper( 2 );
+        scene.add(axesHelper);
+        renderer.render( scene, camera );
+        document.getElementById( 'canvas' ).appendChild( renderer.domElement );
+        
+
+        
+        fileUploader.addEventListener('change', function () {
+            var array_data = [];
+            var file = fileUploader.files[0];
+            var reader = new FileReader();
+            var len = 0
+            const points = [];
+            camera.position.set( 0, -150, 0 );
+            camera.lookAt( 0, 0, 0 );
+        
+            reader.onload = function(e){
+                var data = e.target.result.split('\n');
+                var line_length = data[0].length
+                if (scene.children.length==2){
+                    console.log(scene.children)
+                    scene.remove(scene.children[1])
+                }
+                for (var i=0; i<116; i++){
+                    var xyz = [];
+                    var xyz_ = [];
+                    for (var k=0; k<3; k++){
+                        xyz.push(parseFloat(data[i].substring(1,line_length-1).split(',')[k])*100);
+                        if (i<115){
+                            xyz_.push(parseFloat(data[i+1].substring(1,line_length-1).split(',')[k])*100);
+                        } else {xyz_ = xyz}
+                        array_data.push(parseFloat(data[i].substring(1,line_length-1).split(',')[k]))
+                    }
+                    len = len + Math.sqrt(Math.pow(xyz[0]-xyz_[0], 2)+ Math.pow(xyz[1]-xyz_[1], 2)+ Math.pow(xyz[2]-xyz_[2], 2))
+                    points.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]));
+                }
+                const geometry = new THREE.BufferGeometry().setFromPoints( points );
+                const line = new THREE.Line( geometry, material );
+                scene.add( line );
+                renderer.render( scene, camera );
+
+                
+                const myOnnxSession = new onnx.InferenceSession();
+                myOnnxSession.loadModel("./fnnmodel.onnx").then(() => {
+                    console.log();
+                    const inferenceInputs = new onnx.Tensor(new Float32Array(array_data), 'float32', [1, 348]);
+                    myOnnxSession.run([inferenceInputs]).then((output) => {
+                    const outputTensor = output.values().next().value;
+                    console.log(`model output tensor: ${outputTensor.data}.`);
+                    document.getElementById('prediction').innerText = `SAR (scaled by 4 W/kg): ${Number(outputTensor.data).toFixed(4)} W/kg \nSAR (without scaling): ${(Number(outputTensor.data)*0.125/4).toFixed(4)} W/kg \nlength: ${len.toFixed(2)}cm`;
+                    });
+                });                
+            }
+            reader.readAsText(file)
+        })
+        
+        var controls = new THREE.OrbitControls( camera, renderer.domElement );
+        controls.enablePan = false;
+        controls.update();
+
+        function animate() {
+            requestAnimationFrame( animate );
+            controls.update();
+            renderer.render( scene, camera );
+        }
+        animate();
+
+
+
+        
+
+    </script>
+</body>
+
+</html>
+
